@@ -1,0 +1,108 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  VPCId:
+    Type: AWS::EC2::VPC::Id
+  AppSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Select two subnets in different Availability Zones!
+  ElbSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Select two subnets in different Availability Zones!
+  EC2InstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+      - t2.small
+      - t2.medium
+  EC2KeyName:
+    Description: The EC2 Key Pair to use for the Atlas/WebAPI EC2 Instances.
+    Type: AWS::EC2::KeyPair::KeyName
+  SGgroup:
+    Type: AWS::EC2::SecurityGroup::Id
+  RollingUpdateEnabled:
+    Type: String
+    Description: select true/false for rolling updates
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'true'
+Resources:
+  sampleApplication:
+    Type: AWS::ElasticBeanstalk::Application
+    Properties:
+      Description: AWS Elastic Beanstalk Sample Application
+  sampleApplicationVersion:
+    Type: AWS::ElasticBeanstalk::ApplicationVersion
+    Properties:
+      ApplicationName:
+        Ref: sampleApplication
+      Description: AWS ElasticBeanstalk Sample Application Version
+      SourceBundle:
+        S3Bucket: kishorereddypalle1512  ######3 BUCKETNAME
+        S3Key: beanstack-wordpress.zip   #### FILE NAME
+  sampleConfigurationTemplate:
+    Type: AWS::ElasticBeanstalk::ConfigurationTemplate
+    Properties:
+      ApplicationName:
+        Ref: sampleApplication
+      Description: AWS ElasticBeanstalk Sample Configuration Template
+      OptionSettings:
+      - Namespace: aws:ec2:vpc
+        OptionName: VPCId
+        Value: !Ref VPCId
+      - Namespace: aws:ec2:vpc
+        OptionName: Subnets
+        Value: !Join [",", [!Select [0, !Ref AppSubnets], !Select [1, !Ref AppSubnets]]]
+      - Namespace: aws:ec2:vpc
+        OptionName: ELBSubnets
+        Value: !Join [",", [!Select [0, !Ref ElbSubnets], !Select [1, !Ref ElbSubnets]]]
+      - Namespace: aws:autoscaling:launchconfiguration
+        OptionName: InstanceType
+        Value: !Ref EC2InstanceType
+      - Namespace: aws:elasticbeanstalk:environment:process:default
+        OptionName: Port
+        Value: 80
+      - Namespace: aws:elasticbeanstalk:environment:process:default
+        OptionName: Protocol
+        Value: HTTP
+      - Namespace: aws:autoscaling:asg
+        OptionName: MinSize
+        Value: '2'
+      - Namespace: aws:autoscaling:asg
+        OptionName: MaxSize
+        Value: '6'
+      - Namespace: aws:autoscaling:updatepolicy:rollingupdate
+        OptionName: RollingUpdateEnabled
+        Value:
+          Ref: RollingUpdateEnabled
+      - Namespace: aws:autoscaling:launchconfiguration
+        OptionName: EC2KeyName
+        Value: !Ref EC2KeyName
+      - Namespace: aws:ec2:vpc
+        OptionName: AssociatePublicIpAddress
+        Value: 'true'
+      - Namespace: aws:autoscaling:launchconfiguration
+        OptionName: IamInstanceProfile
+        Value: aws-elasticbeanstalk-ec2-role
+      - Namespace: aws:elasticbeanstalk:environment
+        OptionName: LoadBalancerType
+        Value: application
+      - Namespace: aws:elbv2:listener:default
+        OptionName: ListenerEnabled
+        Value: 'true'
+      - Namespace: aws:autoscaling:trigger
+        OptionName: MeasureName
+        Value: CPUUtilization
+      SolutionStackName: 64bit Amazon Linux 2018.03 v2.8.15 running PHP 7.2
+  sampleEnvironment:
+    Type: AWS::ElasticBeanstalk::Environment
+    Properties:
+      ApplicationName:
+        Ref: sampleApplication
+      Description: AWS ElasticBeanstalk Sample Environment
+      TemplateName:
+        Ref: sampleConfigurationTemplate
+      VersionLabel:
+        Ref: sampleApplicationVersion
