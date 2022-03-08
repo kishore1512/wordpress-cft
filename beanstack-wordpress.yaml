@@ -1,4 +1,4 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: '2010-09-09' #adding for test
 Parameters:
   VPCId:
     Type: AWS::EC2::VPC::Id
